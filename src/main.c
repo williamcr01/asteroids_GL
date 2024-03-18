@@ -3,8 +3,9 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <util/dynArray.h>
 
+// TODO implement bullet rendering, asteroid rendering, and collision detection
 
 #define PI 3.141592654
 
@@ -22,6 +23,14 @@ struct Ship {
   float angle;
   float rotationAngle;
   float velocity;
+};
+
+struct Bullet {
+  Vector2 p1;
+  Vector2 p2;
+  float angle;
+  float velocity;
+  int id;
 };
 
 struct Asteroid {
@@ -68,6 +77,7 @@ bool rotateRight = false;
 const float rotationSpeed = 0.15f * PI / 180;
 const float shipVelocity = 0.00048f;
 const float drag = 0.00000025f;
+const float bulletVelocity = 0.0004f;
 
 float randomFLoat() {
   float randomFloat = (float)rand() / (float)RAND_MAX;
@@ -84,6 +94,9 @@ struct Ship ship = {
     0.0f,      // rotationAngle
     0.0f       // velocity
 };
+
+dynArray bullets;
+static int bulletId = 0;
 
 int main() {
   float divisible = fmod(shipVelocity, drag);
@@ -138,6 +151,8 @@ int main() {
 
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), (void *)0);
   glEnableVertexAttribArray(0);
+
+  initDynArray(&bullets, 0);
 
   // start render loop
   while (glfwWindowShouldClose(window) == 0) {
@@ -203,6 +218,23 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, 1);
   }
+  if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+    Vector2 bulletSize;
+    float distance = 0.01f; // Adjust the distance as needed
+    // Calculate the new point coordinates
+    bulletSize.x = ship.p5.x + distance * cos(ship.angle);
+    bulletSize.y = ship.p5.y + distance * sin(ship.angle);
+    struct Bullet bullet = {
+      ship.p5,
+      bulletSize,
+      ship.angle,
+      bulletVelocity,
+      bulletId
+    };
+    insertDynArray(&bullets, bulletId);
+    bulletId++;
+  }
+  // move forward
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
     ship.velocity = shipVelocity;
   }
