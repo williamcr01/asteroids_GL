@@ -4,7 +4,9 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/src/util/"
+                "${workspaceFolder}/src/util/",
+                "${workspaceFolder}/src/entity/",
+                "${workspaceFolder}/src/gfx/"
             ]
         }
     ],

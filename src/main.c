@@ -1,30 +1,9 @@
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <math.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "util/dynArray.h"
-
+#include "entity/ship.h"
+#include "state.h"
 // TODO implement bullet rendering, asteroid rendering, and collision detection
-
-#define PI 3.141592654
-
-typedef struct {
-  float x;
-  float y;
-} Vector2;
-
-struct Ship {
-  Vector2 p1;
-  Vector2 p2;
-  Vector2 p3;
-  Vector2 p4;
-  Vector2 p5;
-  float angle;
-  float rotationAngle;
-  float velocity;
-};
 
 struct Bullet {
   Vector2 p1;
@@ -45,12 +24,7 @@ struct Asteroid {
   float velocity;
 };
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
-void rotateShip(struct Ship *ship);
-void movePoint(float angle, float velocity, Vector2 *point);
-Vector2 checkShipOutOfBounds(struct Ship *ship);
-void setPoint(float newX, float newY, Vector2 *point);
 
 // Vertex shader source
 const char *vertexShaderSource =
@@ -68,9 +42,6 @@ const char *fragmentShaderSource = "#version 330 core\n"
                                    "{\n"
                                    "   FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
                                    "}\n\0";
-
-const unsigned int SCR_WIDTH = 1028;
-const unsigned int SCR_HEIGHT = 1028;
 
 bool rotateLeft = false;
 bool rotateRight = false;
@@ -99,30 +70,14 @@ struct Ship ship = {
 dynArray bullets;
 static int bulletId = 0;
 
+struct State state;
+
 int main() {
   float divisible = fmod(shipVelocity, drag);
   printf("vel mod drag %f", divisible);
-  glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  // create window
-  GLFWwindow *window =
-      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Asteroids", NULL, NULL);
-  if (window == NULL) {
-    printf("Failed to create a GLFW window");
-    glfwTerminate();
-    return -1;
-  }
-  glfwMakeContextCurrent(window);
-  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-  // load OpenGL function pointers
-  if (gladLoadGLLoader((GLADloadproc)glfwGetProcAddress) == 0) {
-    printf("Failed to initialize GLAD");
-    return -1;
-  }
+  
+  state.window = initWindow();
+  printf("here\n");
 
   unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
@@ -154,10 +109,10 @@ int main() {
   glEnableVertexAttribArray(0);
 
   initDynArray(&bullets, 0);
-
+  printf("here 2\n");
   // start render loop
-  while (glfwWindowShouldClose(window) == 0) {
-    processInput(window);
+  while (glfwWindowShouldClose(state.window) == 0) {
+    processInput(state.window);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -196,7 +151,7 @@ int main() {
 
     glDrawArrays(GL_LINE_LOOP, 0, 5);
 
-    glfwSwapBuffers(window);
+    glfwSwapBuffers(state.window);
     glfwPollEvents();
   }
 
@@ -211,15 +166,11 @@ int main() {
   return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-  glViewport(0, 0, width, height);
-}
-
 void processInput(GLFWwindow *window) {
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-    glfwSetWindowShouldClose(window, 1);
+  if (glfwGetKey(state.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    glfwSetWindowShouldClose(state.window, 1);
   }
-  if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+  if(glfwGetKey(state.window, GLFW_KEY_SPACE) == GLFW_PRESS) {
     Vector2 bulletSize;
     float distance = 0.01f; // Adjust the distance as needed
     // Calculate the new point coordinates
@@ -236,21 +187,21 @@ void processInput(GLFWwindow *window) {
     bulletId++;
   }
   // move forward
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+  if (glfwGetKey(state.window, GLFW_KEY_W) == GLFW_PRESS) {
     ship.velocity = shipVelocity;
   }
   // check rotation left
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+  if (glfwGetKey(state.window, GLFW_KEY_A) == GLFW_PRESS) {
     rotateLeft = true;
   }
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
+  if (glfwGetKey(state.window, GLFW_KEY_A) == GLFW_RELEASE) {
     rotateLeft = false;
   }
   // check rotation right
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+  if (glfwGetKey(state.window, GLFW_KEY_D) == GLFW_PRESS) {
     rotateRight = true;
   }
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
+  if (glfwGetKey(state.window, GLFW_KEY_D) == GLFW_RELEASE) {
     rotateRight = false;
   }
   if (rotateRight == true) {
@@ -260,70 +211,4 @@ void processInput(GLFWwindow *window) {
   } else {
     ship.rotationAngle = 0.0f;
   }
-}
-
-Vector2 getShipCenter(struct Ship *ship) {
-  float centerX =
-      (ship->p1.x + ship->p2.x + ship->p3.x + ship->p4.x + ship->p5.x) / 5.0f;
-  float centerY =
-      (ship->p1.y + ship->p2.y + ship->p3.y + ship->p4.y + ship->p5.y) / 5.0f;
-  Vector2 centerPoint = {centerX, centerY};
-  return centerPoint;
-}
-
-Vector2 checkShipOutOfBounds(struct Ship *ship) {
-  Vector2 returnVec = {0, 0};
-  Vector2 centerPoint = getShipCenter(ship);
-  if(centerPoint.x > 1){
-    if(ship->p1.x > 1 && ship->p4.x > 1 && ship->p5.x > 1) {
-      returnVec.x = 1;
-    }
-  } else if(centerPoint.x < -1) {
-    if(ship->p1.x < -1 && ship->p4.x < -1 && ship->p5.x < -1) {
-      returnVec.x = -1;
-    }
-  } else if(centerPoint.y > 1) {
-    if(ship->p1.y > 1 && ship->p4.y > 1 && ship->p5.y > 1) {
-      returnVec.y = 1;
-    }
-  } else if (centerPoint.y < -1) {
-    if(ship->p1.y < -1 && ship->p4.y < -1 && ship->p5.y < -1) {
-      returnVec.y = -1;
-    }
-  }
-  return returnVec;
-}
-
-void setPoint(float newX, float newY, Vector2 *point) {
-  point->x = newX;
-  point->y = newY;
-}
-
-void movePoint(float angle, float velocity, Vector2 *point) {
-  float dx = velocity * cosf(angle);
-  float dy = velocity * sinf(angle);
-  point->x += dx;
-  point->y += dy;
-}
-
-void rotatePoint(float angle, Vector2 *point, Vector2 centerPoint) {
-  point->x -= centerPoint.x;
-  point->y -= centerPoint.y;
-  float rotationMatrix[] = {cosf(angle), -sinf(angle),
-                            sinf(angle), cosf(angle)};
-  float newX = rotationMatrix[0] * point->x + rotationMatrix[1] * point->y;
-  float newY = rotationMatrix[2] * point->x + rotationMatrix[3] * point->y;
-  point->x = newX + centerPoint.x;
-  point->y = newY + centerPoint.y;
-  // printf("x: %f \ny: %f\n", point->x, point->y);
-}
-
-void rotateShip(struct Ship *ship) {
-  Vector2 centerPoint = getShipCenter(ship);
-
-  rotatePoint(ship->rotationAngle, &ship->p1, centerPoint);
-  rotatePoint(ship->rotationAngle, &ship->p2, centerPoint);
-  rotatePoint(ship->rotationAngle, &ship->p3, centerPoint);
-  rotatePoint(ship->rotationAngle, &ship->p4, centerPoint);
-  rotatePoint(ship->rotationAngle, &ship->p5, centerPoint);
 }
