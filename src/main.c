@@ -1,53 +1,18 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
 #include "util/dynArray.h"
-#include "entity/ship.h"
+#include "entity/asteroid.h"
 #include "state.h"
-// TODO implement bullet rendering, asteroid rendering, and collision detection
 
-struct Bullet {
-  Vector2 p1;
-  Vector2 p2;
-  float angle;
-  float velocity;
-  int id;
-};
-
-struct Asteroid {
-  Vector2 startCenter;
-  Vector2 p1;
-  Vector2 p2;
-  Vector2 p3;
-  Vector2 p4;
-  Vector2 p5;
-  float angle;
-  float velocity;
-};
+// TODO: implement bullet rendering, asteroid rendering, and collision detection
 
 void processInput(GLFWwindow *window);
-
-// Vertex shader source
-const char *vertexShaderSource =
-    "#version 330 core\n"
-    "layout (location = 0) in vec2 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);\n"
-    "}\0";
-
-// Fragment shader source
-const char *fragmentShaderSource = "#version 330 core\n"
-                                   "out vec4 FragColor;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "   FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
-                                   "}\n\0";
 
 bool rotateLeft = false;
 bool rotateRight = false;
 
 const float rotationSpeed = 0.15f * PI / 180;
-const float shipVelocity = 0.00048f;
 const float drag = 0.00000025f;
 const float bulletVelocity = 0.0004f;
 
@@ -56,45 +21,25 @@ float randomFLoat() {
   return randomFloat * 2 - 1;
 }
 
-struct Ship ship = {
-    {-0.04f, -0.04f},
-    {-0.015, -0.02},
-    {0.015, -0.02},
-    {0.04f, -0.04f},
-    {0.0f, 0.06f},
-    0.5f * PI, // angle
-    0.0f,      // rotationAngle
-    0.0f       // velocity
-};
+struct State state;
+
+clock_t timeSinceLastBullet;
 
 dynArray bullets;
 static int bulletId = 0;
 
-struct State state;
-
 int main() {
-  float divisible = fmod(shipVelocity, drag);
-  printf("vel mod drag %f", divisible);
-  
-  state.window = initWindow();
-  printf("here\n");
+  state.ship = initShip();
+  state.bullets = bullets;
+  float divisible = fmod(state.ship.shipVelocity, drag);
+  printf("vel mod drag %f\n", divisible);
 
-  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-  glCompileShader(vertexShader);
+  initDynArray(&state.bullets, 1);
 
-  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-  glCompileShader(fragmentShader);
+  timeSinceLastBullet = clock();
 
-  unsigned int shaderProgram = glCreateProgram();
-  glAttachShader(shaderProgram, vertexShader);
-  glAttachShader(shaderProgram, fragmentShader);
-  glLinkProgram(shaderProgram);
-
-  // delete shaders, no longer needed
-  glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
+  state.window = initWindow(); // initialize window
+  state.shaderProgram = initShaders(); // initialize shaders
 
   unsigned int VBO, VAO;
   glGenVertexArrays(1, &VAO);
@@ -103,13 +48,11 @@ int main() {
   glBindVertexArray(VAO);
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(ship), &ship, GL_DYNAMIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(state.ship), &state.ship, GL_DYNAMIC_DRAW);
 
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), (void *)0);
   glEnableVertexAttribArray(0);
 
-  initDynArray(&bullets, 0);
-  printf("here 2\n");
   // start render loop
   while (glfwWindowShouldClose(state.window) == 0) {
     processInput(state.window);
@@ -117,37 +60,39 @@ int main() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(shaderProgram);
+    glUseProgram(state.shaderProgram);
     glBindVertexArray(VAO);
 
     // Rotate the ship
-    rotateShip(&ship);
-    ship.angle += ship.rotationAngle;
+    rotateShip(&state.ship);
+    state.ship.angle += state.ship.rotationAngle;
 
-    if (ship.velocity > 0) {
-      movePoint(ship.angle, ship.velocity, &ship.p1);
-      movePoint(ship.angle, ship.velocity, &ship.p2);
-      movePoint(ship.angle, ship.velocity, &ship.p3);
-      movePoint(ship.angle, ship.velocity, &ship.p4);
-      movePoint(ship.angle, ship.velocity, &ship.p5);
-      ship.velocity -= drag;
+    if (state.ship.currVelocity > 0) {
+      movePoint(state.ship.angle, state.ship.currVelocity, &state.ship.p1);
+      movePoint(state.ship.angle, state.ship.currVelocity, &state.ship.p2);
+      movePoint(state.ship.angle, state.ship.currVelocity, &state.ship.p3);
+      movePoint(state.ship.angle, state.ship.currVelocity, &state.ship.p4);
+      movePoint(state.ship.angle, state.ship.currVelocity, &state.ship.p5);
+      state.ship.currVelocity -= drag;
+      if(state.ship.currVelocity < 0) {
+        state.ship.currVelocity = 0;
+      }
     }
 
-    Vector2 shipBounds = checkShipOutOfBounds(&ship);
-    //printf("x: %f y: %f\n", shipBounds.x, shipBounds.y);
+    Vector2 shipBounds = checkShipOutOfBounds(&state.ship);
     if(shipBounds.x != 0.0 || shipBounds.y != 0.0) {
-      setPoint(-ship.p1.x, -ship.p1.y, &ship.p1); // inverse ship and coordinates
-      setPoint(-ship.p2.x, -ship.p2.y, &ship.p2);
-      setPoint(-ship.p3.x, -ship.p3.y, &ship.p3);
-      setPoint(-ship.p4.x, -ship.p4.y, &ship.p4);
-      setPoint(-ship.p5.x, -ship.p5.y, &ship.p5);
-      ship.rotationAngle += PI; // rotate ship back from the inversion
-      rotateShip(&ship);
+      setPoint(-state.ship.p1.x, -state.ship.p1.y, &state.ship.p1); // inverse ship and coordinates
+      setPoint(-state.ship.p2.x, -state.ship.p2.y, &state.ship.p2);
+      setPoint(-state.ship.p3.x, -state.ship.p3.y, &state.ship.p3);
+      setPoint(-state.ship.p4.x, -state.ship.p4.y, &state.ship.p4);
+      setPoint(-state.ship.p5.x, -state.ship.p5.y, &state.ship.p5);
+      state.ship.rotationAngle += PI; // rotate ship back from the inversion
+      rotateShip(&state.ship);
     }
 
     // Update buffer data with rotated ship
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(ship), &ship);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(state.ship), &state.ship);
 
     glDrawArrays(GL_LINE_LOOP, 0, 5);
 
@@ -158,7 +103,7 @@ int main() {
   // de-allocate resoruces
   glDeleteVertexArrays(1, &VAO);
   glDeleteBuffers(1, &VBO);
-  glDeleteProgram(shaderProgram);
+  glDeleteProgram(state.shaderProgram);
 
   printf("Application closed");
   glfwTerminate();
@@ -171,24 +116,31 @@ void processInput(GLFWwindow *window) {
     glfwSetWindowShouldClose(state.window, 1);
   }
   if(glfwGetKey(state.window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    Vector2 bulletSize;
-    float distance = 0.01f; // Adjust the distance as needed
-    // Calculate the new point coordinates
-    bulletSize.x = ship.p5.x + distance * cos(ship.angle);
-    bulletSize.y = ship.p5.y + distance * sin(ship.angle);
-    struct Bullet bullet = {
-      ship.p5,
-      bulletSize,
-      ship.angle,
-      bulletVelocity,
-      bulletId
-    };
-    //insertDynArray(&bullets, bulletId);
-    bulletId++;
+    if((float)(clock() - timeSinceLastBullet) / CLOCKS_PER_SEC > 1.0f) {
+      Vector2 bulletSize;
+      float distance = 0.01f; // Adjust the distance as needed
+      // Calculate the new point coordinates
+      bulletSize.x = state.ship.p5.x + distance * cos(state.ship.angle);
+      bulletSize.y = state.ship.p5.y + distance * sin(state.ship.angle);
+      struct Bullet bullet = {
+        state.ship.p5,
+        bulletSize,
+        state.ship.angle,
+        bulletVelocity,
+        bulletId
+      };
+      insertDynArray(&state.bullets, bulletId); // insert bulletId into array
+      bulletId++;
+      for(int i = 0; i < state.bullets.size; i++) {
+        printf("Bullet id: %d\n", state.bullets.array[i]);
+      }
+      timeSinceLastBullet = clock();
+    }
+
   }
   // move forward
   if (glfwGetKey(state.window, GLFW_KEY_W) == GLFW_PRESS) {
-    ship.velocity = shipVelocity;
+    state.ship.currVelocity = state.ship.shipVelocity;
   }
   // check rotation left
   if (glfwGetKey(state.window, GLFW_KEY_A) == GLFW_PRESS) {
@@ -205,10 +157,10 @@ void processInput(GLFWwindow *window) {
     rotateRight = false;
   }
   if (rotateRight == true) {
-    ship.rotationAngle = -rotationSpeed;
+    state.ship.rotationAngle = -rotationSpeed;
   } else if (rotateLeft == true) {
-    ship.rotationAngle = rotationSpeed;
+    state.ship.rotationAngle = rotationSpeed;
   } else {
-    ship.rotationAngle = 0.0f;
+    state.ship.rotationAngle = 0.0f;
   }
 }

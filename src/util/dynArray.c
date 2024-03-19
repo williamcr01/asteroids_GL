@@ -1,6 +1,6 @@
 #include "dynArray.h"
 
-
+// init dynamic array, initialSize cant be 0
 void initDynArray(dynArray* a, size_t initialSize) {
     a->array = (int*)malloc(initialSize * sizeof(int));
     a->used = 0;

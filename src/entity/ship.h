@@ -8,8 +8,10 @@ struct Ship {
   Vector2 p5;
   float angle;
   float rotationAngle;
-  float velocity;
+  float currVelocity;
+  float shipVelocity;
 };
 
 void rotateShip(struct Ship *ship);
 Vector2 checkShipOutOfBounds(struct Ship *ship);
+struct Ship initShip();

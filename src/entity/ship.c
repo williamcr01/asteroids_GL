@@ -41,3 +41,17 @@ void rotateShip(struct Ship *ship) {
   rotatePoint(ship->rotationAngle, &ship->p4, centerPoint);
   rotatePoint(ship->rotationAngle, &ship->p5, centerPoint);
 }
+
+struct Ship initShip() {
+  return (struct Ship){
+    {-0.04f, -0.04f},
+    {-0.015, -0.02},
+    {0.015, -0.02},
+    {0.04f, -0.04f},
+    {0.0f, 0.06f},
+    0.5f * PI,  // angle
+    0.0f,       // rotationAngle
+    0.0f,       // currVelocity
+    0.00048f    // macVeclocity
+};
+}

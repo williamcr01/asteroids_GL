@@ -6,6 +6,9 @@ add_executable(${PROJECT_NAME}
   ./src/entity/ship.c 
   ./src/util/pointManip.c
   ./src/gfx/window.c
+  ./src/gfx/shaders.c
+  ./src/entity/bullet.h
+  ./src/entity/asteroid.h
 )
 include_directories(SYSTEM
   "./lib/glfw/include"
