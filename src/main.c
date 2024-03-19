@@ -3,7 +3,8 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <util/dynArray.h>
+#include <stdlib.h>
+#include "util/dynArray.h"
 
 // TODO implement bullet rendering, asteroid rendering, and collision detection
 
@@ -231,7 +232,7 @@ void processInput(GLFWwindow *window) {
       bulletVelocity,
       bulletId
     };
-    insertDynArray(&bullets, bulletId);
+    //insertDynArray(&bullets, bulletId);
     bulletId++;
   }
   // move forward

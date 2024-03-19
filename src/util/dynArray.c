@@ -1,7 +1,7 @@
 #include "dynArray.h"
 
 
-inline void initDynArray(dynArray* a, size_t initialSize) {
+void initDynArray(dynArray* a, size_t initialSize) {
     a->array = (int*)malloc(initialSize * sizeof(int));
     a->used = 0;
     a->size = initialSize;
