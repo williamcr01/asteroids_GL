@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.29.0)
 project(space_rocks)
 add_executable(${PROJECT_NAME} 
   ./src/main.c 
-  ./src/util/dynArray.c 
+  ./src/util/dynArrayBullet.c 
   ./src/entity/ship.c 
   ./src/util/pointManip.c
   ./src/gfx/window.c

@@ -10,15 +10,14 @@ const char *vertexShaderSource =
     "}\0";
 
 // Fragment shader source
-const char *fragmentShaderSource = 
-    "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
-    "}\n\0";
+const char *fragmentShaderSource = "#version 330 core\n"
+                                   "out vec4 FragColor;\n"
+                                   "void main()\n"
+                                   "{\n"
+                                   "   FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"
+                                   "}\n\0";
 
-unsigned int initShaders(){
+unsigned int initShaders() {
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
